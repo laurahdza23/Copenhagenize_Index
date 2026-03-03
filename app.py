@@ -9,6 +9,15 @@ import base64
 
 # 1. Page Configuration
 st.set_page_config(page_title="Copenhagenize Index 2025 Dashboard", page_icon="🚲", layout="wide")
+# --- CIZE FORMAT ---
+st.markdown("""
+    <style>
+    /* Apply TT Norms font (will use system fallbacks if not locally installed) */
+    html, body, [class*="css"] {
+        font-family: 'TT Norms', 'TT Norms Regular', sans-serif !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # 2. Data Loading
 @st.cache_data
@@ -19,18 +28,31 @@ def load_data():
 
 df = load_data()
 
-# --- PDF REPORT GENERATOR  ---
+# --- VECTOR EXPORT CONFIGURATION ---
+# Export as an SVG vector file
+svg_config = {
+    'toImageButtonOptions': {
+        'format': 'svg',            # vector format
+        'filename': 'copenhagenize_chart', 
+        'height': 600,              # Default height 
+        'width': 800,               # Default width
+        'scale': 1                  # Scale factor
+    },
+    'displaylogo': False            # Optional: hides the Plotly logo in the menu for a cleaner look
+}
+
+# --- PDF REPORT CONFIGURATION  ---
 def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf = FPDF()
     pdf.add_page()
     
     # Header
+    pdf.set_text_color(25, 47, 81) # Dark Blue
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "BICYCLE-FRIENDLY CITY BENCHMARK REPORT", ln=True, align='C')
+    pdf.set_text_color(0, 0, 0) # Black for body
     pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 5, "Based on the Copenhagenize Index 2025 Methodology", ln=True, align='C')
-    pdf.ln(10)
-    
+        
     # City Title & KPIs
     pdf.set_font("Arial", 'B', 20)
     pdf.cell(0, 10, f"{city_data['City']}, {city_data['Country']}", ln=True)
@@ -39,7 +61,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf.cell(0, 8, f"Population: {city_data['Population']:,}", ln=True)
     pdf.ln(5)
     
-    # 1. The 3 Core Pillars (With Definitions)
+    # The 3 Core Pillars 
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, "1. THE 3 CORE PILLARS", ln=True)
     pdf.set_font("Arial", '', 11)
@@ -62,7 +84,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf.multi_cell(0, 5, "Measures what makes progress possible: governance, funding, planning and public perception that drive long-term change.")
     pdf.ln(8)
     
-    # 2. Diagnostics
+    # Diagnostics
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, "2. DIAGNOSTICS", ln=True)
     
@@ -80,7 +102,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
         pdf.cell(0, 6, f"- {metric}: {score:.1f}/100", ln=True)
     pdf.ln(8)
     
-    # 3. Action Items (Moved from UI to PDF)
+    # Action Items 
     pdf.set_font("Arial", 'B', 14)
     pdf.cell(0, 10, "3. STRATEGIC LEVERAGE POINTS ", ln=True)
     pdf.set_font("Arial", 'I', 10)
@@ -95,10 +117,12 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     else:
         pdf.multi_cell(0, 6, "Excellent performance. The city has already implemented all fundamental policy and administrative baselines tracked by the Index.")
         
-    return pdf.output(dest="S").encode("latin-1")
+    pdf_bytes = pdf.output(dest="S")
+    if isinstance(pdf_bytes, str):
+        pdf_bytes = pdf_bytes.encode("latin-1")
+    return pdf_bytes
 
 # --- INDICATOR DICTIONARY ---
-# Grouping the raw columns into your requested categories
 indicator_categories = {
     "Infrastructure": ["Protected_km", "Infra_density (km of bicycle infra/100 km of roadway)"],
     "Parking": ["Public_spaces", "Enclosed_spaces"],
@@ -117,9 +141,9 @@ indicator_categories = {
 try:
     st.sidebar.image("logo.png", use_container_width=True)
 except FileNotFoundError:
-    st.sidebar.title("🚲 Copenhagenize") # Fallback if the logo is missing
+    st.sidebar.title("🚲 Copenhagenize") 
 
-st.sidebar.markdown("**Benchmark Analytics 2025**")
+st.sidebar.markdown("**Dashboard Analytics 2025**")
 st.sidebar.divider()
 
 # Dynamic list of regions for the dropdown
@@ -181,7 +205,7 @@ with tab1:
             },
             template='plotly_white'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=svg_config)
         
     # ---> MAP SECTION <---
     st.markdown("### 🗺️ Geographic Viewer")
@@ -210,14 +234,14 @@ with tab1:
             margin=dict(l=0, r=0, t=30, b=0),
             geo=dict(showland=True, landcolor="lightgray", showcoastlines=True, coastlinecolor="white", showcountries=True, countrycolor="white")
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True, config=svg_config)
     else:
         st.info("Map data is updating. Please ensure you ran the coordinate fetching script.")
     
     st.markdown("---")
     st.markdown("### 📋 Data Viewer")
     
-    # Drop Lat/Lon from the table, and format Population with commas
+    # Hide Lat/Lon from the table, and format Population 
     display_df = df_filtered.drop(columns=['Lat', 'Lon'], errors='ignore')
     st.dataframe(
         display_df.style.format({"Population": "{:,.0f}"}), 
@@ -251,20 +275,20 @@ with tab2:
                 domain = {'x': [0, 1], 'y': [0, 1]},
                 title = {'text': f"<b>{selected_city}</b><br><span style='font-size:0.8em;color:gray'>Overall Index Score</span>"},
                 gauge = {
-                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                    'bar': {'color': "#1f77b4"},
+                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#192F51"},
+                    'bar': {'color': "#1BBBEC"},
                     'bgcolor': "white",
                     'borderwidth': 2,
                     'bordercolor': "gray",
                     'steps': [
-                        {'range': [0, 40], 'color': '#ffcccb'},   # Red tint for poor
-                        {'range': [40, 70], 'color': '#ffffcc'},  # Yellow tint for average
-                        {'range': [70, 100], 'color': '#ccffcc'}  # Green tint for excellent
+                        {'range': [0, 40], 'color': '#ffcccb'},   # Red for poor
+                        {'range': [40, 70], 'color': '#ffffcc'},  # Yellow for average
+                        {'range': [70, 100], 'color': '#ccffcc'}  # Green for excellent
                     ]
                 }
             ))
             fig_gauge.update_layout(height=300, margin=dict(t=50, b=20, l=20, r=20))
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.plotly_chart(fig_gauge, use_container_width=True, config=svg_config)
             
         with col_stats:
             st.markdown(f"### Global Rank: **#{city_data['Rank']}**")
@@ -302,13 +326,13 @@ with tab2:
         
         with col_strength:
             st.success("#### 🌟 Top 3 Strengths")
-            # Get the top 3
+            # Top 3 scores
             for metric, score in sorted_scores[:3]:
                 st.markdown(f"**{metric}:** {score:.1f} / 100")
                 
         with col_weak:
             st.error("#### ⚠️ Top 3 Areas for Improvement")
-            # Get the bottom 3
+            # Bottom 3 scores
             for metric, score in reversed(sorted_scores[-3:]):
                 st.markdown(f"**{metric}:** {score:.1f} / 100")
 
@@ -318,7 +342,7 @@ with tab2:
         city_scores = {c.replace('Score ', ''): city_data[c] for c in score_cols if not pd.isna(city_data[c])}
         sorted_scores = sorted(city_scores.items(), key=lambda x: x[1], reverse=True)
         
-        # 2. Quick Wins (Action Engine)
+        # 2. Quick Wins 
         quick_wins_map = {
             "Cycling_masterplan_yes_no": "Draft and formally adopt a dedicated Cycling Masterplan or Sustainable Urban Mobility Plan.",
             "Cycling_unit_yes_no": "Establish a dedicated 'Cycling Unit' within the city administration.",
@@ -334,7 +358,7 @@ with tab2:
         st.markdown("### 📥 Benchmark Card")
         st.markdown("Export PDF detailing the city's performance, strengths, and actionable policy interventions.")
         
-        # Generate the PDF byte stream
+        # Generate the PDF report card
         pdf_data = generate_pdf_report(city_data, sorted_scores, missing_policies)
         
         # Streamlit Download Button
@@ -350,7 +374,7 @@ with tab2:
 # --- TAB 3: CORRELATION EXPLORER ---
 with tab3:
     st.subheader("📈 Correlation & Policy Impact Explorer")
-    st.markdown("Select a City Input (X) and observe its historical relationship with a City Outcome (Y).")
+    st.markdown("Select a City Input (X) and observe its relationship with a City Outcome (Y).")
     
     # 1. Categorize variables (Interventions vs Outcomes)
     interventions = [
@@ -393,7 +417,7 @@ with tab3:
             trendline='ols', title=f"Impact of {x_axis.split('(')[0].strip()} on {y_axis.split('(')[0].strip()}",
             template='plotly_white'
         )
-        st.plotly_chart(fig_corr, use_container_width=True)
+        st.plotly_chart(fig_corr, use_container_width=True, config=svg_config)
         
         # --- Analysis of correlations ---
         # Calculate Pearson correlation coefficient dropping empty rows
@@ -459,12 +483,13 @@ with tab3:
         )
         
     if len(selected_heatmap_cols) > 1:
-        corr_matrix = df_filtered[selected_heatmap_cols].corr(method=corr_method)
+        corr_method_literal = cast(Literal["pearson", "kendall", "spearman"], corr_method if corr_method in ["pearson", "kendall", "spearman"] else "pearson")
+        corr_matrix = df_filtered[selected_heatmap_cols].corr(method=corr_method_literal)
         fig_heat = px.imshow(
-            corr_matrix, text_auto=".2f", aspect="auto", color_continuous_scale="RdBu_r", zmin=-1, zmax=1, template='plotly_white'
+            corr_matrix, text_auto=True, aspect="auto", color_continuous_scale="RdBu_r", zmin=-1, zmax=1, template='plotly_white'
         )
         fig_heat.update_layout(height=600, margin=dict(t=20, b=20, l=20, r=20))
-        st.plotly_chart(fig_heat, use_container_width=True, key="heatmap")
+        st.plotly_chart(fig_heat, use_container_width=True, key="heatmap", config=svg_config)
     else:
         st.warning("Please select at least 2 metrics to generate the correlation heatmap.")
 
@@ -488,11 +513,10 @@ with tab4:
         target_city = st.selectbox(
             " 1. Select Target City:", 
             cities_list, 
-            index=cities_list.index('Bogotá') if 'Bogotá' in cities_list else 0
+            index=cities_list.index('Paris') if 'Paris' in cities_list else 0
         )
         
-    # Step B: Peers comparison algorithm
-    # Get the target city's population and continent
+    # Step B: Peers comparison algorithm by population and continent
     target_data = df[df['City'] == target_city].iloc[0]
     target_pop = target_data['Population']
     target_continent = target_data['Continent']
@@ -525,7 +549,7 @@ with tab4:
     if len(selected_targets) == 0:
         st.warning("Please select at least one city or benchmark to compare.")
     else:
-        # Extract and calculate data dynamically for whatever is in the multiselect
+        # Extract and calculate data dynamically for selected city
         entity_data = {}
         for target in selected_targets:
             if "Average:" in target:
@@ -552,29 +576,29 @@ with tab4:
         
         fig_radar = go.Figure()
         
-        # A slightly more vibrant palette
-        colors = ['#5ab4e5', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
+        # Color palette
+        colors = ['#1BBBEC', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
         
         for idx, target in enumerate(selected_targets):
             r_vals = [entity_data[target].get(c, 0) for c in score_cols]
             closed_r = r_vals + [r_vals[0]]
             
-            # --- NEW: HIGHLIGHT LOGIC ---
-            is_target = (idx == 0) # The first item in the list is always our Target City
+            # --- HIGHLIGHT LOGIC ---
+            is_target = (idx == 0) # The first item in the list is the Target City
             is_average = "Average:" in target
             
             fig_radar.add_trace(go.Scatterpolar(
                 r=closed_r,
                 theta=closed_theta,
-                # The target is ALWAYS filled. Peers are only filled if it's a 1-on-1 comparison.
+                # The target is filled. Peers are only filled if it's a 1-on-1 comparison.
                 fill='toself' if is_target or len(selected_targets) <= 2 else 'none',
                 name=f"🎯 {target}" if is_target else target,
                 line=dict(
                     color=colors[idx],
-                    width=4.5 if is_target else 2, # Target line is more than twice as thick
-                    dash='dash' if is_average and not is_target else 'solid' # Averages get dashed lines!
+                    width=4.5 if is_target else 2, # Thicker target line
+                    dash='dash' if is_average and not is_target else 'solid' # Averages dashed lines
                 ),
-                opacity=1.0 if is_target else 0.65 # Peers are faded into the background slightly
+                opacity=1.0 if is_target else 0.65 # Peers are faded into the background
             ))
         
         fig_radar.update_layout(
@@ -584,10 +608,10 @@ with tab4:
             template='plotly_white',
             margin=dict(t=40, b=40, l=40, r=40)
         )
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, use_container_width=True, config=svg_config)
        
         st.markdown("### 📊 Diagnostic table")
-        st.markdown("**Raw Data** (actual counts) ➡️ **Correlated Data** (normalized per capita/roadway) ➡️ **Final Score** (0-100).")
+        st.markdown("**Raw Data** ➡️ **Correlated Data** (normalized) ➡️ **Final Score** (0-100).")
         
         #  Define the pipeline for the major indicators that have all 3 tiers
         diagnostic_pipeline = {
@@ -604,7 +628,7 @@ with tab4:
             "Safety": {
                 "Raw": "Cyclist_deaths",
                 "Correlated": "Safety_rate (rate/100K pop)",
-                "Score": "Score Safety" # Note: In safety, lower raw/correlated is better!
+                "Score": "Score Safety" # Note: In safety, lower raw/correlated is better
             },
             "Traffic Calming": {
                 "Raw": "Street_Km_30",
@@ -679,7 +703,7 @@ with tab4:
             }
         )
         
-        st.caption("🟢 Indicates the benchmark is outperforming the target city. 🔴 Indicates the benchmark is underperforming. (Note: For Safety Raw/Correlated metrics, lower numbers are better).")
+        st.caption(" For 2-city comparison: 🟢 Indicates the benchmark is outperforming the target city. 🔴 Indicates the benchmark is underperforming. (Note: For Safety Raw/Correlated metrics, lower numbers are better).")
 
 
 # --- TAB 5: INDICATOR METRICS (MIN/MAX/AVG/MEDIAN) ---
@@ -702,35 +726,78 @@ with tab5:
             is_binary = set(unique_vals).issubset({0, 1})
             
             if is_binary:
-                # For binary/Yes-No policies, we show a percentage Bar Chart
-                st.markdown("*Percentage of cities that have implemented this policy.*")
-                agg_df = df_filtered.groupby('Continent')[metric].mean().reset_index()
-                agg_df[metric] = agg_df[metric] * 100 # Convert to percentage
+                # ---> Geographic Map for Yes/No Policies
+                st.markdown("*Geographic distribution of cities that have implemented this policy.*")
                 
-                fig_dist = px.bar(
-                    agg_df, x='Continent', y=metric, color='Continent',
-                    labels={metric: '% of Cities (Yes)'},
-                    template='plotly_white'
-                )
-                fig_dist.update_yaxes(range=[0, 100])
-                
-                # KEY TO PREVENT DUPLICATE PLOTY CHART
-                st.plotly_chart(fig_dist, use_container_width=True, key=f"bar_{metric}")
-                
+                # Check if we have coordinates
+                if 'Lat' in df_filtered.columns and 'Lon' in df_filtered.columns:
+                    # Create a clean display dataframe for the map
+                    map_df = df_filtered.copy()
+                    
+                    # Map the 1/0 integers to "Yes" and "No" strings so the map legend looks professional
+                    map_df['Status'] = map_df[metric].map({1: 'Yes', 0: 'No', 1.0: 'Yes', 0.0: 'No'})
+                    
+                    # Drop rows that are missing coordinates or data for this specific metric
+                    map_df = map_df.dropna(subset=['Status', 'Lat', 'Lon'])
+                    
+                    fig_map = px.scatter_geo(
+                        map_df,
+                        lat='Lat',
+                        lon='Lon',
+                        color='Status',
+                        color_discrete_map={'Yes': '#1BBBEC', 'No': '#D53C4C'}, # Copenhagenize Green and Warning Red
+                        hover_name='City',
+                        hover_data={'Lat': False, 'Lon': False, 'Country': True, 'Status': True, metric: False},
+                        projection="natural earth",
+                        title=f"Global Adoption: {metric.replace('_', ' ')}"
+                    )
+                    
+                    # Make the dots a bit larger and add a white border so they pop against the map
+                    fig_map.update_traces(marker=dict(size=9, line=dict(width=1, color='white')))
+                    
+                    fig_map.update_layout(
+                        margin=dict(l=0, r=0, t=40, b=0),
+                        geo=dict(
+                            showland=True, landcolor="#f4f6f9", 
+                            showcoastlines=True, coastlinecolor="white", 
+                            showcountries=True, countrycolor="white"
+                        ),
+                        legend_title_text="Policy Implemented?"
+                    )
+                    
+                    st.plotly_chart(fig_map, use_container_width=True, config=svg_config, key=f"map_{metric}")
+                    
+                    # Optional: Keep the regional bar chart inside an expander for quick summary stats
+                    with st.expander("📊 View Regional Percentage Summary"):
+                        agg_df = df_filtered.groupby('Continent')[metric].mean().reset_index()
+                        agg_df[metric] = agg_df[metric] * 100 # Convert to percentage
+                        
+                        fig_bar = px.bar(
+                            agg_df, x='Continent', y=metric, color='Continent',
+                            labels={metric: '% of Cities (Yes)'},
+                            template='plotly_white'
+                        )
+                        fig_bar.update_yaxes(range=[0, 100])
+                        st.plotly_chart(fig_bar, use_container_width=True, config=svg_config, key=f"bar_{metric}")
+                else:
+                    st.warning("Map data is missing. Please ensure you ran the coordinate fetching script.")
+            
             else:
-                # For continuous numbers, we use Box Plot
-                fig_dist = px.box(
-                    df_filtered, x='Continent', y=metric, color='Continent', 
+                # ---> Box Plot for Continuous Metrics
+                st.markdown("*Regional distribution and outliers for this metric.*")
+                fig_box = px.box(
+                    df_filtered, 
+                    x='Continent', 
+                    y=metric, 
+                    color='Continent', 
                     points="all", # Shows the individual cities as dots next to the box
                     hover_name="City",
                     template='plotly_white'
                 )
-                
-                # KEY TO PREVENT DUPLICATE PLOTY CHART
-                st.plotly_chart(fig_dist, use_container_width=True, key=f"box_{metric}")
+                st.plotly_chart(fig_box, use_container_width=True, key=f"box_{metric}", config=svg_config)
             
             # Generate the pandas describe() summary table
-            st.markdown(f"**Statistical Summary (Grouped by Region):**")
+            st.markdown("**Statistical Summary (Grouped by Region):**")
             
             # Calculate the describe stats and format 
             summary_stats = df_filtered.groupby('Continent')[metric].describe()
@@ -748,12 +815,6 @@ with tab5:
             })
             
             # Format Data Points remain whole numbers
-            def formatter(val, col):
-                if col == 'Data Points':
-                    return f"{val:.0f}"
-                else:
-                    return f"{val:.2f}"
-
             st.dataframe(
                 summary_stats.style.format({col: (lambda x: f"{x:.0f}" if col == 'Data Points' else f"{x:.2f}") for col in summary_stats.columns}),
                 use_container_width=True
