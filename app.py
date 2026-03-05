@@ -838,9 +838,12 @@ with tab5:
             top30_stats = df.nsmallest(30, 'Rank')[metric].describe().to_frame().T
             top30_stats.index = ['🌟 Global Top 30']
             
+            global100_stats = df[metric].describe().to_frame().T
+            global100_stats.index = ['🌟 Global 100']
+
             # 3. Append the benchmark rows to the bottom of the regional summary
             # (We use pd.concat to cleanly merge the dataframes)
-            summary_stats = pd.concat([summary_stats, top10_stats, top30_stats])
+            summary_stats = pd.concat([summary_stats, top10_stats, top30_stats, global100_stats])
             
             # 4. Rename columns to be more readable 
             summary_stats = summary_stats.rename(columns={
