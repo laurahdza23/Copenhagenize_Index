@@ -863,3 +863,27 @@ with tab5:
                 use_container_width=True
             )
             st.markdown("---")
+            # ---> City Ranking Table
+            with st.expander(f"🏅 View City Rankings: {metric.replace('_', ' ')}"):
+                # Determine sort order: Safety metrics (lower is better) sort ascending
+                is_lower_better = "death" in metric.lower() or "safety_rate" in metric.lower()
+                
+                # Create a clean dataframe for ranking
+                ranking_df = df_filtered[['City', 'Country', 'Continent', metric]].dropna(subset=[metric])
+                ranking_df = ranking_df.sort_values(by=metric, ascending=is_lower_better)
+                
+                # Reset index to show a clean ranking number (1, 2, 3...)
+                ranking_df = ranking_df.reset_index(drop=True)
+                ranking_df.index = ranking_df.index + 1 # Start index at 1 instead of 0
+                
+                # Format and display the dataframe
+                if is_binary:
+                    ranking_df[metric] = ranking_df[metric].map({1: 'Yes', 0: 'No', 1.0: 'Yes', 0.0: 'No'})
+                    st.dataframe(ranking_df, use_container_width=True)
+                else:
+                    st.dataframe(
+                        ranking_df.style.format({metric: "{:.2f}"}),
+                        use_container_width=True
+                    )
+                    
+            st.markdown("---")
