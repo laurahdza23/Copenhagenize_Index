@@ -22,8 +22,10 @@ st.markdown("""
 # 2. Data Loading
 @st.cache_data
 def load_data():
-    # Read dataset
-    df = pd.read_csv("master_copenhagenize_data.csv", encoding='latin-1')
+    try:
+        df = pd.read_csv("master_copenhagenize_data.csv", encoding='utf-8')
+    except UnicodeDecodeError:
+        df = pd.read_csv("master_copenhagenize_data.csv", encoding='cp1252')
     return df
 
 df = load_data()
@@ -840,9 +842,8 @@ with tab5:
             
             global100_stats = df[metric].describe().to_frame().T
             global100_stats.index = ['🌟 Global 100']
-
+            
             # 3. Append the benchmark rows to the bottom of the regional summary
-            # (We use pd.concat to cleanly merge the dataframes)
             summary_stats = pd.concat([summary_stats, top10_stats, top30_stats, global100_stats])
             
             # 4. Rename columns to be more readable 
@@ -862,7 +863,7 @@ with tab5:
                 summary_stats.style.format({col: (lambda x: f"{x:.0f}" if col == 'Data Points' else f"{x:.2f}") for col in summary_stats.columns}),
                 use_container_width=True
             )
-            st.markdown("---")
+            
             # ---> City Ranking Table
             with st.expander(f"🏅 View City Rankings: {metric.replace('_', ' ')}"):
                 # Determine sort order: Safety metrics (lower is better) sort ascending
@@ -885,5 +886,4 @@ with tab5:
                         ranking_df.style.format({metric: "{:.2f}"}),
                         use_container_width=True
                     )
-                    
             st.markdown("---")
