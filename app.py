@@ -130,7 +130,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
 # --- INDICATOR DICTIONARY ---
 indicator_categories = {
     "Infrastructure": ["Protected_km", "Infra_density (km of bicycle infra/100 km of roadway)"],
-    "Parking": ["Public_spaces", "Enclosed_spaces"],
+    "Parking": ["Public_spaces", "Enclosed_spaces", "Parking_density (stands/1K pop)"],
     "Traffic Calming": ["Street_km_total", "Street_Km_30", "Traffic_30 (% of km of roadway)"],
     "Modal Share": ["Bike_trips_women_%", "Modal_share_2024_% \n(or nearest post-Covid)", "Modal_share_2019_% \n(or nearest pre-Covid)", "Modal_delta (percentage points)"],
     "Safety": ["Cyclist_deaths", "Safety_rate (rate/100K pop)"],
@@ -176,12 +176,13 @@ st.title("🚲 Copenhagenize Index 2025")
 st.markdown("Explore infrastructure, policies, and cycling usage across the globe's top 100 cities.")
 
 # Create tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Regional Overview", 
     "🏙️ City Profile",      
     "📈 Correlation Explorer", 
     "⚖️ City Comparison", 
-    "📏 Indicator Metrics"
+    "📏 Indicator Metrics",
+    "🏛️ 3 Core Pillars"
     ])
 
 with tab1:
@@ -887,3 +888,124 @@ with tab5:
                         use_container_width=True
                     )
             st.markdown("---")
+
+
+# --- TAB 6: 3 CORE PILLARS ANALYSIS ---
+with tab6:
+    st.subheader("🏛️ Core Pillar Analysis")
+    st.markdown("Analyze the Overall Index Score to see which cities lead in each pillar, and how they balance these three foundations.")
+    
+    pillars = [
+        'Safe and Connected Infrastructure', 
+        'Usage and Reach', 
+        'Policy and Support'
+    ]
+    
+    # Check if the pillars exist in the dataset to prevent errors
+    if all(p in df_filtered.columns for p in pillars):
+        
+        # --- 1. Top 10 Leaderboards ---
+        st.markdown("### 🏆 Top 10 Performers by Pillar")
+        
+        col_p1, col_p2, col_p3 = st.columns(3)
+        cols_list = [col_p1, col_p2, col_p3]
+        
+        for i, pillar in enumerate(pillars):
+            # Get top 10 for this specific pillar
+            top_10_df = df_filtered.nlargest(10, pillar).sort_values(by=pillar, ascending=True)
+            
+            fig_bar = px.bar(
+                top_10_df, 
+                x=pillar, 
+                y='City', 
+                orientation='h',
+                title=f"Best in: {pillar}", 
+                text_auto='.1f',
+                color=pillar,
+                color_continuous_scale="Teal" if i==0 else ("Purp" if i==1 else "Blues")
+            )
+            fig_bar.update_layout(
+                xaxis_title="Score (0-100)", 
+                yaxis_title="", 
+                showlegend=False, 
+                coloraxis_showscale=False,
+                margin=dict(l=0, r=20, t=40, b=0),
+                height=400
+            )
+            cols_list[i].plotly_chart(fig_bar, use_container_width=True, config=export_config)
+
+        st.markdown("---")
+        
+        # --- 2. Ternary Plot (Balance) ---
+        col_ternary, col_parallel = st.columns([1.2, 1])
+        
+        with col_ternary:
+            st.markdown("### 🔺 The Balance Triangle (Ternary Plot)")
+            st.markdown("This plot shows the *proportion* of a city's strengths. Cities closer to the center are perfectly balanced. " \
+            "Cities pulled toward a corner rely heavily on that specific pillar.")
+            
+            fig_ternary = px.scatter_ternary(
+                df_filtered, 
+                a='Safe and Connected Infrastructure', 
+                b='Usage and Reach', 
+                c='Policy and Support', 
+                hover_name='City',
+                color='Continent',
+                size='Index Score', # Bigger bubbles = higher overall score
+                template='plotly_white'
+            )
+            fig_ternary.update_layout(
+                ternary=dict(
+                    sum=100,
+                    aaxis_title="Infrastructure",
+                    baxis_title="Usage",
+                    caxis_title="Policy"
+                ),
+                height=500,
+                margin=dict(l=20, r=20, t=40, b=30)
+            )
+            st.plotly_chart(fig_ternary, use_container_width=True, config=export_config)
+
+        # --- 3. Parallel Coordinates (Flow) ---
+        with col_parallel:
+            st.markdown("### 🕸️ Pillar Performance Flow")
+            st.markdown("Trace how a city performs across all three pillars. Does a high Policy score actually translate to a high Usage score?")
+            
+            # Create a clean subset and sort by overall index score for color scaling
+            parallel_df = df_filtered[['City', 'Index Score'] + pillars].dropna()
+            
+            fig_parallel = px.parallel_coordinates(
+                parallel_df, 
+                color="Index Score",
+                dimensions=pillars,
+                color_continuous_scale=px.colors.diverging.Tealrose,
+                color_continuous_midpoint=parallel_df['Index Score'].median() if not parallel_df.empty else 50,
+                labels={
+                    'Safe and Connected Infrastructure': 'Infrastructure',
+                    'Usage and Reach': 'Usage',
+                    'Policy and Support': 'Policy'
+                }
+            )
+            fig_parallel.update_layout(height=500, margin=dict(l=40, r=40, t=40, b=30))
+            st.plotly_chart(fig_parallel, use_container_width=True, config=export_config)
+            
+        st.markdown("---")
+        
+        # --- 4. Searchable Data Table ---
+        st.markdown("### 📋 Pillar Data Explorer")
+        st.markdown("Sort and search through the exact scores for all cities currently in view.")
+        
+        clean_pillar_df = df_filtered[['Rank', 'City', 'Country', 'Index Score'] + pillars].sort_values('Rank')
+        st.dataframe(
+            clean_pillar_df.style.format({
+                'Index Score': "{:.1f}",
+                'Safe and Connected Infrastructure': "{:.1f}",
+                'Usage and Reach': "{:.1f}",
+                'Policy and Support': "{:.1f}"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
+        
+    else:
+        st.warning("The 3 Core Pillars data columns were not found in the dataset. Please ensure they are named exactly: 'Safe and Connected Infrastructure', 'Usage and Reach', and 'Policy and Support'.")
