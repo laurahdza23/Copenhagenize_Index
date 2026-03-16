@@ -151,6 +151,7 @@ except FileNotFoundError:
 st.sidebar.markdown("**Dashboard Analytics 2025**")
 st.sidebar.divider()
 
+
 # Dynamic list of regions and benchmark tiers for the dropdown
 regions = ["All Regions", "🌟 Global Top 10", "🌟 Global Top 30"] + sorted(df['Continent'].dropna().unique().tolist())
 selected_region = st.sidebar.selectbox("🌍 Select Region or Tier", regions)
@@ -892,7 +893,7 @@ with tab5:
 
 # --- TAB 6: 3 CORE PILLARS ANALYSIS ---
 with tab6:
-    st.subheader("🏛️ Core Pillar Analysis")
+    st.subheader("🏛️ Pillar Analysis")
     st.markdown("Analyze the Overall Index Score to see which cities lead in each pillar, and how they balance these three foundations.")
     
     pillars = [
@@ -966,32 +967,10 @@ with tab6:
             )
             st.plotly_chart(fig_ternary, use_container_width=True, config=export_config)
 
-        # --- 3. Parallel Coordinates (Flow) ---
-        with col_parallel:
-            st.markdown("### 🕸️ Pillar Performance Flow")
-            st.markdown("Trace how a city performs across all three pillars. Does a high Policy score actually translate to a high Usage score?")
-            
-            # Create a clean subset and sort by overall index score for color scaling
-            parallel_df = df_filtered[['City', 'Index Score'] + pillars].dropna()
-            
-            fig_parallel = px.parallel_coordinates(
-                parallel_df, 
-                color="Index Score",
-                dimensions=pillars,
-                color_continuous_scale=px.colors.diverging.Tealrose,
-                color_continuous_midpoint=parallel_df['Index Score'].median() if not parallel_df.empty else 50,
-                labels={
-                    'Safe and Connected Infrastructure': 'Infrastructure',
-                    'Usage and Reach': 'Usage',
-                    'Policy and Support': 'Policy'
-                }
-            )
-            fig_parallel.update_layout(height=500, margin=dict(l=40, r=40, t=40, b=30))
-            st.plotly_chart(fig_parallel, use_container_width=True, config=export_config)
-            
+       
         st.markdown("---")
         
-        # --- 4. Searchable Data Table ---
+        # --- 3. Searchable Data Table ---
         st.markdown("### 📋 Pillar Data Explorer")
         st.markdown("Sort and search through the exact scores for all cities currently in view.")
         
