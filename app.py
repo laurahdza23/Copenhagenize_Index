@@ -730,32 +730,54 @@ with tab4:
         st.markdown("### 📊 Diagnostic table")
         st.markdown("**Raw Data** ➡️ **Correlated Data** (normalized) ➡️ **Final Score** (0-100).")
         
-        #  Define the pipeline for the major indicators that have all 3 tiers
+        #  Define the pipeline for all quantitative indicators
         diagnostic_pipeline = {
             "Bicycle Infrastructure": {
                 "Raw": "Protected_km",
                 "Correlated": "Infra_density (km of bicycle infra/100 km of roadway)",
                 "Score": "Score Bicycle Infrastructure"
             },
-            "Political Commitment": {
-                "Raw": "Bicycle_budget_5yr",
-                "Correlated": "Spending_per_capita (€/capita/year)",
-                "Score": "Score Political Commitment"
+            "Parking": {
+                "Raw": ["Public_spaces", "Enclosed_spaces"],
+                "Correlated": "Parking_density (stands/1K pop)",
+                "Score": "Score Parking"
+            },
+            "Traffic Calming": {
+                "Raw": ["Street_Km_30", "Street_km_total"],
+                "Correlated": "Traffic_30 (% of km of roadway)",
+                "Score": "Score Traffic Calming" 
+            },
+            "Women Modal Share": {
+                "Raw": "Bike_trips_women_%",
+                "Score": "Score Women Modal Share"
+            },
+            "Modal Share": {
+                "Raw": "Modal_share_2024_% \n(or nearest post-Covid)",
+                "Score": "Score Modal Share"
+            },    
+             "Modal Share increase": {
+                "Correlated": "Modal_delta (percentage points)", # Fixed capitalization
+                "Score": "Score Modal Share"
             },
             "Safety": {
                 "Raw": "Cyclist_deaths",
                 "Correlated": "Safety_rate (rate/100K pop)",
                 "Score": "Score Safety" # Note: In safety, lower raw/correlated is better
             },
-            "Traffic Calming": {
-                "Raw": "Street_Km_30",
-                "Correlated": "Traffic_30 (% of km of roadway)",
-                "Score": "Traffic Calming" 
+            "Political Commitment": {
+                "Raw": "Bicycle_budget_5yr",
+                "Correlated": "Spending_per_capita (€/capita/year)",
+                "Score": "Score Political Commitment"
             },
             "Bike Share": {
-                "Raw": "Bike_share_fleet",
+                "Raw": ["Bike_share_fleet", "Bike_share_trips"],
                 "Correlated": "Bike_share_cov_density (bikes/1K pop)",
                 "Score": "Score Bike Share"
+            },
+            "Urban Planning": {
+                "Raw": "3yr_new_lanes_km",
+                "Correlated": "Infra_increase (km of bicycle infra/100 km of roadway)",
+                "Score": "Score Urban Planning"
             }
         }
 
@@ -763,47 +785,51 @@ with tab4:
         matrix_rows = []
         
         for category, metrics in diagnostic_pipeline.items():
-            for data_type, col_name in metrics.items():
-                if col_name in df.columns:
-                    # ---> Clean up the metric name for the display table
-                    display_metric_name = col_name.replace('_', ' ')
-                    
-                    # ---> Added "Metric" to the row structure
-                    row_data = {
-                        "Indicator": category, 
-                        "Data Tier": data_type,
-                        "Metric": display_metric_name
-                    }
-                    
-                    # Get the baseline value (the first target selected)
-                    baseline_val = entity_data[selected_targets[0]].get(col_name, np.nan)
-                    
-                    for idx, target in enumerate(selected_targets):
-                        val = entity_data[target].get(col_name, np.nan)
+            for data_type, cols in metrics.items():
+                
+                # ---> FIX: Convert to list if it's a single string so we can handle both smoothly
+                col_list = cols if isinstance(cols, list) else [cols]
+                
+                for col_name in col_list:
+                    if col_name in df.columns:
+                        # Clean up the metric name for the display table
+                        display_metric_name = col_name.replace('_', ' ')
                         
-                        # Formatting logic
-                        if pd.isna(val):
-                            display_val = "N/A"
-                        else:
-                            # Add comparison arrows if there are exactly 2 targets
-                            if len(selected_targets) == 2 and idx == 1 and not pd.isna(baseline_val):
-                                # Determine if higher is better (Safety is reversed)
-                                higher_is_better = False if category == "Safety" and data_type != "Score" else True
-                                
-                                if val > baseline_val:
-                                    arrow = "🟢" if not higher_is_better else "🔴" 
-                                    display_val = f"{val:,.2f} {arrow}"
-                                elif val < baseline_val:
-                                    arrow = "🔴" if not higher_is_better else "🟢"
-                                    display_val = f"{val:,.2f} {arrow}"
-                                else:
-                                    display_val = f"{val:,.2f} ⚪"
+                        row_data = {
+                            "Indicator": category, 
+                            "Data Tier": data_type,
+                            "Metric": display_metric_name
+                        }
+                        
+                        # Get the baseline value (the first target selected)
+                        baseline_val = entity_data[selected_targets[0]].get(col_name, np.nan)
+                        
+                        for idx, target in enumerate(selected_targets):
+                            val = entity_data[target].get(col_name, np.nan)
+                            
+                            # Formatting logic
+                            if pd.isna(val):
+                                display_val = "N/A"
                             else:
-                                display_val = f"{val:,.2f}"
-                                
-                        row_data[target] = display_val
-                    
-                    matrix_rows.append(row_data)
+                                # Add comparison arrows if there are exactly 2 targets
+                                if len(selected_targets) == 2 and idx == 1 and not pd.isna(baseline_val):
+                                    # Determine if higher is better (Safety is reversed)
+                                    higher_is_better = False if category == "Safety" and data_type != "Score" else True
+                                    
+                                    if val > baseline_val:
+                                        arrow = "🟢" if not higher_is_better else "🔴" 
+                                        display_val = f"{val:,.2f} {arrow}"
+                                    elif val < baseline_val:
+                                        arrow = "🔴" if not higher_is_better else "🟢"
+                                        display_val = f"{val:,.2f} {arrow}"
+                                    else:
+                                        display_val = f"{val:,.2f} ⚪"
+                                else:
+                                    display_val = f"{val:,.2f}"
+                                    
+                            row_data[target] = display_val
+                        
+                        matrix_rows.append(row_data)
 
         # Convert to DataFrame
         matrix_df = pd.DataFrame(matrix_rows)
@@ -821,7 +847,6 @@ with tab4:
         )
         
         st.caption(" For 2-city comparison: 🟢 Indicates the benchmark is outperforming the target city. 🔴 Indicates the benchmark is underperforming. (Note: For Safety Raw/Correlated metrics, lower numbers are better).")
-
 
 # --- TAB 5: INDICATOR METRICS (MIN/MAX/AVG/MEDIAN) ---
 with tab5:
