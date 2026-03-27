@@ -56,7 +56,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf.set_font("Arial", 'B', 20)
     pdf.cell(0, 10, f"{city_data['City']}, {city_data['Country']}", ln=True)
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 8, f"Global Rank: #{city_data['Rank']}   |   Overall Index Score: {city_data['Index Score']:.1f} / 100", ln=True)
+    pdf.cell(0, 8, f"Global Rank: #{city_data['Rank']}   |   Overall Index Score: {city_data['Index Score']:.2f} / 100", ln=True)
     pdf.cell(0, 8, f"Population: {city_data['Population']:,}", ln=True)
     pdf.ln(10)
     
@@ -74,9 +74,9 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
         
         # Combine the pillar names with their exact scores for the chart labels
         radar_categories = [
-            f"Safe & Connected<br>Infrastructure<br>({safe_score:.1f}/100)", 
-            f"Usage & Reach<br>({usage_score:.1f}/100)", 
-            f"Policy & Support<br>({policy_score:.1f}/100)"
+            f"Safe & Connected<br>Infrastructure<br>({safe_score:.2f}/100)", 
+            f"Usage & Reach<br>({usage_score:.2f}/100)", 
+            f"Policy & Support<br>({policy_score:.2f}/100)"
         ]
         
         # Close the loop to draw a full triangle
@@ -134,7 +134,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf.set_text_color(0, 0, 0) # Black
     pdf.set_font("Arial", '', 12)
     for metric, score in sorted_scores[:3]:
-        pdf.cell(95, 6, f"- {metric}: {score:.1f}/100", ln=True)
+        pdf.cell(95, 6, f"- {metric}: {score:.2f}/100", ln=True)
         
     # RIGHT COLUMN (Improvements)
     pdf.set_y(start_y)
@@ -148,7 +148,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf.set_font("Arial", '', 12)
     for metric, score in reversed(sorted_scores[-3:]):
         pdf.set_x(105) # Must reset X after a line break in the second column
-        pdf.cell(95, 6, f"- {metric}: {score:.1f}/100", ln=True)
+        pdf.cell(95, 6, f"- {metric}: {score:.2f}/100", ln=True)
         
     pdf_bytes = pdf.output(dest="S")
     if isinstance(pdf_bytes, str):
