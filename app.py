@@ -116,7 +116,8 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
         
     except Exception as e:
         pdf.set_font("Arial", 'I', 10)
-        pdf.multi_cell(0, 5, "(Error generating Pillar Radar figure. Ensure 'kaleido' library is installed.)")
+        # This will print the actual system error directly onto the PDF so we can read it!
+        pdf.multi_cell(0, 5, f"(Error generating Pillar Radar figure: {str(e)})")
 
         pdf.ln(10)
     
