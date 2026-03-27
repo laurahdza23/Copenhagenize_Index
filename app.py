@@ -7,6 +7,8 @@ from typing import cast, Literal
 from fpdf import FPDF
 import base64
 import scipy.stats as stats
+import tempfile
+import os
 
 # 1. Page Configuration
 st.set_page_config(page_title="Copenhagenize Index 2025 Dashboard", page_icon="🚲", layout="wide")
@@ -36,76 +38,116 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
     pdf = FPDF()
     pdf.add_page()
     
+    # Insert Logo 
+    try:
+        pdf.image("logo.png", x=10, y=8, w=45)
+    except FileNotFoundError:
+        pass 
+    
     # Header
-    pdf.set_text_color(25, 47, 81) # Dark Blue
+    pdf.set_text_color(0, 0, 0) # Black for the title
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "BICYCLE-FRIENDLY CITY BENCHMARK REPORT", ln=True, align='C')
+    pdf.cell(0, 30, "CITY PROFILE CARD", ln=True, align='C')
     pdf.set_text_color(0, 0, 0) # Black for body
     pdf.set_font("Arial", 'I', 10)
         
     # City Title & KPIs
+    pdf.ln(10)
     pdf.set_font("Arial", 'B', 20)
     pdf.cell(0, 10, f"{city_data['City']}, {city_data['Country']}", ln=True)
-    pdf.set_font("Arial", '', 12)
+    pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 8, f"Global Rank: #{city_data['Rank']}   |   Overall Index Score: {city_data['Index Score']:.1f} / 100", ln=True)
     pdf.cell(0, 8, f"Population: {city_data['Population']:,}", ln=True)
-    pdf.ln(5)
+    pdf.ln(10)
     
-    # The 3 Core Pillars 
+    # The 3 Core Pillars Header
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "1. THE 3 CORE PILLARS", ln=True)
-    pdf.set_font("Arial", '', 11)
+    pdf.set_text_color(0, 0, 0) # Black for the title
+    pdf.cell(0, 10, "THE 3 CORE PILLARS", ln=True)
+    pdf.set_text_color(0, 0, 0) # Black for body text
     
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 6, f"Safe & Connected Infrastructure ({city_data['Safe and Connected Infrastructure']:.1f}/100)", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(0, 5, "Measures what cities build: the physical investments and design standards that enable safe, continuous cycling.")
-    pdf.ln(3)
+    try:
+        # Extract scores
+        safe_score = city_data['Safe and Connected Infrastructure']
+        usage_score = city_data['Usage and Reach']
+        policy_score = city_data['Policy and Support']
+        
+        # Combine the pillar names with their exact scores for the chart labels
+        radar_categories = [
+            f"Safe & Connected<br>Infrastructure<br>({safe_score:.1f}/100)", 
+            f"Usage & Reach<br>({usage_score:.1f}/100)", 
+            f"Policy & Support<br>({policy_score:.1f}/100)"
+        ]
+        
+        # Close the loop to draw a full triangle
+        r_vals = [safe_score, usage_score, policy_score]
+        closed_r = r_vals + [r_vals[0]]
+        closed_theta = radar_categories + [radar_categories[0]]
+        
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=closed_r,
+            theta=closed_theta,
+            fill='toself', 
+            name=city_data['City'], 
+            line=dict(color='#1BBBEC', width=3),
+            marker=dict(color='#192f51', size=8) # Adds visible dots to the corners of the triangle
+        ))
+        
+        fig_radar.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=10)),
+                angularaxis=dict(tickfont=dict(size=13, color="black"))
+            ),
+            showlegend=False, 
+            height=450, # Taller to fit labels
+            width=650,  # Wider to prevent horizontal cut-offs
+            margin=dict(t=50, b=50, l=100, r=100) # Extra wide margins so the text isn't cropped by Kaleido
+        )
+        
+        # Save to temp file and insert
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+            fig_radar.write_image(tmpfile.name)
+            tmp_path = tmpfile.name
+        
+        # Insert image into PDF, centered 
+        pdf.image(tmp_path, x=15, w=180)
+        os.remove(tmp_path)
+        
+    except Exception as e:
+        pdf.set_font("Arial", 'I', 10)
+        pdf.multi_cell(0, 5, "(Error generating Pillar Radar figure. Ensure 'kaleido' library is installed.)")
+
+        pdf.ln(10)
     
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 6, f"Usage & Reach ({city_data['Usage and Reach']:.1f}/100)", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(0, 5, "Measures what people do: how much, how often and by who cycling is practiced in daily life.")
-    pdf.ln(3)
+    # --- 2 COLUMN STRENGTHS & IMPROVEMENTS  ---
     
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 6, f"Policy & Support ({city_data['Policy and Support']:.1f}/100)", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.multi_cell(0, 5, "Measures what makes progress possible: governance, funding, planning and public perception that drive long-term change.")
-    pdf.ln(8)
+   
+    start_y = pdf.get_y()
     
-    # Diagnostics
+    # LEFT COLUMN (Strengths)
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "2. DIAGNOSTICS", ln=True)
+    pdf.set_text_color(0, 0, 0) 
+    pdf.cell(95, 6, "Top 3 Strengths", ln=True)
     
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 6, "Top 3 Strengths:", ln=True)
-    pdf.set_font("Arial", '', 11)
+    pdf.set_text_color(0, 0, 0) # Black
+    pdf.set_font("Arial", '', 12)
     for metric, score in sorted_scores[:3]:
-        pdf.cell(0, 6, f"- {metric}: {score:.1f}/100", ln=True)
-    pdf.ln(3)
+        pdf.cell(95, 6, f"- {metric}: {score:.1f}/100", ln=True)
+        
+    # RIGHT COLUMN (Improvements)
+    pdf.set_y(start_y)
+    pdf.set_x(105)
     
-    pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 6, "Top 3 Areas for Improvement:", ln=True)
-    pdf.set_font("Arial", '', 11)
-    for metric, score in reversed(sorted_scores[-3:]):
-        pdf.cell(0, 6, f"- {metric}: {score:.1f}/100", ln=True)
-    pdf.ln(8)
-    
-    # Action Items 
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "3. STRATEGIC LEVERAGE POINTS ", ln=True)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.multi_cell(0, 5, "The following are low-cost, high-impact administrative and policy implementations currently missing in the city's ecosystem. Enacting these will rapidly accelerate progress.")
-    pdf.ln(3)
+    pdf.set_text_color(0, 0, 0) 
+    pdf.cell(95, 6, "Top 3 Areas for Improvement", ln=True)
     
-    pdf.set_font("Arial", '', 11)
-    if len(missing_policies) > 0:
-        for policy in missing_policies:
-            pdf.multi_cell(0, 6, f" - {policy}")
-            pdf.ln(2)
-    else:
-        pdf.multi_cell(0, 6, "Excellent performance. The city has already implemented all fundamental policy and administrative baselines tracked by the Index.")
+    pdf.set_text_color(0, 0, 0) # Black
+    pdf.set_font("Arial", '', 12)
+    for metric, score in reversed(sorted_scores[-3:]):
+        pdf.set_x(105) # Must reset X after a line break in the second column
+        pdf.cell(95, 6, f"- {metric}: {score:.1f}/100", ln=True)
         
     pdf_bytes = pdf.output(dest="S")
     if isinstance(pdf_bytes, str):
@@ -394,16 +436,16 @@ with tab2:
 
         st.markdown("---")
         st.markdown("### 📥 Benchmark Card")
-        st.markdown("Export PDF detailing the city's performance, strengths, and actionable policy interventions.")
+        st.markdown("Export PDF detailing the city's performance, strengths, and areas of improvement.")
         
         # Generate the PDF report card
         pdf_data = generate_pdf_report(city_data, sorted_scores, missing_policies)
         
         # Streamlit Download Button
         st.download_button(
-            label=f"📄 Download {selected_city} Benchmark Report (PDF)",
+            label=f"📄 Download {selected_city} Benchmark Card (PDF)",
             data=pdf_data,
-            file_name=f"{selected_city}_Copenhagenize_Report.pdf",
+            file_name=f"{selected_city}_Copenhagenize_Card.pdf",
             mime="application/pdf",
             type="primary"
         )
