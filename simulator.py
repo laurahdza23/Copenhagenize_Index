@@ -28,6 +28,14 @@ st.set_page_config(
     page_icon="🧮",
     layout="wide"
 )
+st.markdown("""
+    <style>
+    /* This targets the live web view */
+    .block-container {
+        padding-top: 3.5rem !important; /* 3.5rem is the sweet spot to clear the Streamlit header */
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 col_logo, col_title = st.columns([1, 15])
 with col_logo:
