@@ -30,9 +30,8 @@ st.set_page_config(
 )
 st.markdown("""
     <style>
-    /* This targets the live web view */
     .block-container {
-        padding-top: 3.5rem !important; /* 3.5rem is the sweet spot to clear the Streamlit header */
+        padding-top: 3.5rem !important; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -84,7 +83,7 @@ with st.form("simulator_form"):
     st.subheader("🏙️ City Basics")
     col1, col2 = st.columns(2)
     sim_city = col1.text_input("City Name", value="Berlin")
-    sim_pop = col2.number_input("Population", value=3685265)
+    sim_pop = col2.number_input("Population", value=3685265, placeholder="N/A")
     
     st.markdown("---")
     
@@ -96,17 +95,20 @@ with st.form("simulator_form"):
     sim_prot_km = col_i1.number_input(
         "Protected Bicycle Infrastructure (Km)",
         value=36.9,
-        help="Km of physically separated bike lanes"
+        help="Km of physically protected cycling space",
+        placeholder="N/A"
     )
     sim_street_km = col_i2.number_input(
         "Total Roadway Network (Km)",
         value=5350.0,
-        help="Total length of all streets in the city"
+        help="Total length of all streets in the city",
+        placeholder="N/A"
     )
     sim_30_km = col_i3.number_input(
         "Streets with 30km/h Limit (Km)",
         value=3820.0,
-        help="Km of streets with speed limit of 30 km/h or less"
+        help="Km of streets with speed limit of 30 km/h or less",
+        placeholder="N/A"
     )
     
     st.markdown("**Parking & Safety**")
@@ -114,17 +116,20 @@ with st.form("simulator_form"):
     sim_pub_park = col_i4.number_input(
         "Public Bike Parking Spaces",
         value=6100,
-        help="Total number of public bike parking stands"
+        help="Total number of public bike parking stands",
+        placeholder="N/A"
     )
     sim_enc_park = col_i5.number_input(
         "Enclosed Parking Spaces",
         value=467,
-        help="Secure/roofed bike parking spaces"
+        help="Secure/roofed bike parking spaces",
+        placeholder="N/A"
     )
     sim_deaths = col_i6.number_input(
         "Average Annual Biking Fatalities (past 5 years)",
         value=12.0,
-        help="Average deaths per year among cyclists"
+        help="Average yearly cyclist deaths",
+        placeholder="N/A"
     )
 
     st.markdown("---")
@@ -137,17 +142,21 @@ with st.form("simulator_form"):
     sim_modal_now = col_u1.number_input(
         "Current Modal Share (%)",
         value=18.0,
-        help="% of trips made by bicycle (current year)"
+        help="% of trips made by bicycle (current year)",
+        placeholder="N/A"
+
     )
     sim_modal_past = col_u2.number_input(
         "Pre-Covid Modal Share (%)",
         value=18.0,
-        help="% of trips made by bicycle (2019 or baseline)"
+        help="% of trips made by bicycle (2019 or baseline)",
+        placeholder="N/A"
     )
     sim_women = col_u3.number_input(
         "Women Share of bicycle trips (%)",
         value=47.0,
-        help="% of bicycle trips made by women"
+        help="% of bicycle trips made by women",
+        placeholder="N/A"
     )
 
     st.markdown("**Bike Share**")
@@ -155,12 +164,14 @@ with st.form("simulator_form"):
     sim_bs_fleet = col_u4.number_input(
         "Bike Share Fleet Size",
         value=6300,
-        help="Total number of bikes in bike-sharing system"
+        help="Total number of bikes in bike-sharing system",
+        placeholder="N/A"
     )
     sim_bs_trips = col_u5.number_input(
         "Daily Bike Share Trips",
         value=10685,
-        help="Average bike-share trips per day"
+        help="Average bike-share trips per day",
+        placeholder="N/A"
     )
     pol_pt_integ = col_u6.checkbox(
         "Public Transit Integration (Bike Share)",
@@ -201,14 +212,16 @@ with st.form("simulator_form"):
     st.markdown("**Political Commitment & Urban Planning**")
     col_p1, col_p2 = st.columns(2)
     sim_budget = col_p1.number_input(
-        "5-Year Bicycle Budget (€)",
+        "Total 5-Year Bicycle Budget (€)",
         value=142100000,
-        help="Total municipal budget for cycling infrastructure/programs (5 years)"
+        help="Average total municipal budget for cycling infrastructure/programs (5 years)",
+        placeholder="N/A"
     )
     sim_3yr_km = col_p2.number_input(
         "New Lanes Built in Last 3 Years (Km)",
         value=22.3,
-        help="Km of new protected bike lanes built recently"
+        help="Km of new protected bike lanes built recently",
+        placeholder="N/A"
     )
 
     col_p3, col_p4, col_p5 = st.columns(3)
@@ -394,19 +407,37 @@ if submit_button:
     # Rank the simulated city against all reference cities based on composite score.
     # Returns rank 1-100 based on how many reference cities score higher.
     
-    hypothetical_rank = 1
+    hypothetical_rank = "N/A"
+    context_table = None
+
     if pd.notna(composite_score):
         target_col = 'Composite Index Score' if 'Composite Index Score' in df.columns else 'Index Score'
+        
         if target_col in df.columns:
-            # Count how many cities have a higher score
-            for index_score in sorted(df[target_col].dropna(), reverse=True):
-                if composite_score >= index_score:
-                    break
-                hypothetical_rank += 1
-        else:
-            hypothetical_rank = "N/A"
-    else:
-        hypothetical_rank = "N/A"
+            # Create a clean temp dataframe for ranking
+            temp_df = df[['City', target_col]].dropna().copy()
+            
+            # Append our simulated city
+            sim_name_label = f"📍 {sim_city} (Simulated)"
+            sim_row = pd.DataFrame({'City': [sim_name_label], target_col: [composite_score]})
+            temp_df = pd.concat([temp_df, sim_row], ignore_index=True)
+            
+            # Sort by score and generate dense ranks
+            temp_df = temp_df.sort_values(by=target_col, ascending=False).reset_index(drop=True)
+            temp_df['Rank'] = temp_df.index + 1
+            
+            # Find where the simulated city landed
+            sim_idx = temp_df[temp_df['City'] == sim_name_label].index[0]
+            hypothetical_rank = int(temp_df.loc[sim_idx, 'Rank'])
+            
+            # Extract 3 above and 3 below (safeguard against edges)
+            start_idx = max(0, sim_idx - 3)
+            end_idx = min(len(temp_df), sim_idx + 4)
+            
+            context_table = temp_df.iloc[start_idx:end_idx].copy()
+            context_table[target_col] = context_table[target_col].map("{:.1f}".format)
+            context_table.columns = ['City', 'Composite Score', 'Global Rank']
+            context_table = context_table[['Global Rank', 'City', 'Composite Score']] # Reorder for display
 
     # ====================================================================
     # DISPLAY RESULTS - SUMMARY CARD & VISUALIZATIONS
@@ -450,7 +481,7 @@ if submit_button:
             value=f"#{hypothetical_rank}" if hypothetical_rank != "N/A" else "N/A"
         )
         
-        st.markdown("<br>### Pillar Breakdown", unsafe_allow_html=True)
+        st.markdown("<br> Pillar Breakdown", unsafe_allow_html=True)
         
         # Progress bar for each pillar with descriptive text
         p_safe_val = int(pillar_safe) if pd.notna(pillar_safe) else 0
@@ -531,7 +562,7 @@ if submit_button:
         st.plotly_chart(fig_radar, use_container_width=True)
 
     # ====================================================================
-    # STRENGTHS & AREAS FOR IMPROVEMENT
+    # STRENGTHS, AREAS FOR IMPROVEMENT, GLOBAL CONTEXT
     # ====================================================================
     # Identify the top 3 scoring and lowest scoring indicators to help cities
     # understand where they excel and where to focus improvement efforts.
@@ -540,14 +571,12 @@ if submit_button:
     
     score_dict = dict(zip(radar_labels, simulated_values))
     valid_scores = {k: v for k, v in score_dict.items() if pd.notna(v)}
-    
-    # Sort descending to identify strengths
     sorted_scores = sorted(valid_scores.items(), key=lambda item: item[1], reverse=True)
     
     top_3 = sorted_scores[:3]
-    bottom_3 = sorted_scores[-3:][::-1]  # Reverse so weakest is first
+    bottom_3 = sorted_scores[-3:][::-1] 
 
-    col_str, col_imp = st.columns(2)
+    col_str, col_imp, col_rank = st.columns([1, 1, 1.5])
     
     with col_str:
         st.success("🌟 **Top 3 Strengths**")
@@ -555,9 +584,23 @@ if submit_button:
             st.markdown(f"**{idx+1}. {label}** ({score:.1f}/100)")
             
     with col_imp:
-        st.error("📈 **Top 3 Areas for Improvement**")
+        st.error("📈 **Areas for Improvement**")
         for idx, (label, score) in enumerate(bottom_3):
             st.markdown(f"**{idx+1}. {label}** ({score:.1f}/100)")
+            
+    with col_rank:
+        st.info("🏆 **Comparative Ranking**")
+        if context_table is not None:
+            # Use Pandas Styling to highlight the simulated row
+            def highlight_simulated(row):
+                if "(Simulated)" in row['City']:
+                    return ['background-color: #1BBBEC; color: white'] * len(row)
+                return [''] * len(row)
+                
+            styled_table = context_table.style.apply(highlight_simulated, axis=1).hide(axis="index")
+            st.write(styled_table.to_html(), unsafe_allow_html=True)
+        else:
+            st.write("Ranking data unavailable.")
 
     # ====================================================================
     # EXPORT TO PDF
