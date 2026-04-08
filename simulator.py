@@ -83,7 +83,11 @@ with st.form("simulator_form"):
     st.subheader("🏙️ City Basics")
     col1, col2 = st.columns(2)
     sim_city = col1.text_input("City Name", value="Berlin")
-    sim_pop = col2.number_input("Population", value=3685265, placeholder="N/A")
+    sim_pop = col2.text_input(
+        "Population", 
+        value="3685265",
+
+    )
     
     st.markdown("---")
     
@@ -92,44 +96,46 @@ with st.form("simulator_form"):
     
     st.markdown("**Infrastructure & Traffic Calming**")
     col_i1, col_i2, col_i3 = st.columns(3)
-    sim_prot_km = col_i1.number_input(
+    
+    sim_prot_km = col_i1.text_input(
         "Protected Bicycle Infrastructure (Km)",
-        value=36.9,
-        help="Km of physically protected cycling space",
-        placeholder="N/A"
+        value="36.9",
+        placeholder="N/A",
+        help="Km of physically protected cycling space"
     )
-    sim_street_km = col_i2.number_input(
+    sim_street_km = col_i2.text_input(
         "Total Roadway Network (Km)",
-        value=5350.0,
-        help="Total length of all streets in the city",
-        placeholder="N/A"
+        value="5350.0",
+        placeholder="N/A",
+        help="Total length of all streets in the city"
     )
-    sim_30_km = col_i3.number_input(
+    sim_30_km = col_i3.text_input(
         "Streets with 30km/h Limit (Km)",
-        value=3820.0,
-        help="Km of streets with speed limit of 30 km/h or less",
-        placeholder="N/A"
+        value="3820.0",
+        placeholder="N/A",
+        help="Km of streets with speed limit of 30 km/h or less"
     )
     
     st.markdown("**Parking & Safety**")
     col_i4, col_i5, col_i6 = st.columns(3)
-    sim_pub_park = col_i4.number_input(
+    
+    sim_pub_park = col_i4.text_input(
         "Public Bike Parking Spaces",
-        value=6100,
-        help="Total number of public bike parking stands",
-        placeholder="N/A"
+        value="6100",
+        placeholder="N/A",
+        help="Total number of public bike parking stands"
     )
-    sim_enc_park = col_i5.number_input(
+    sim_enc_park = col_i5.text_input(
         "Enclosed Parking Spaces",
-        value=467,
-        help="Secure/roofed bike parking spaces",
-        placeholder="N/A"
+        value="467",
+        placeholder="N/A",
+        help="Secure/roofed bike parking spaces"
     )
-    sim_deaths = col_i6.number_input(
+    sim_deaths = col_i6.text_input(
         "Average Annual Biking Fatalities (past 5 years)",
-        value=12.0,
-        help="Average yearly cyclist deaths",
-        placeholder="N/A"
+        value="12.0",
+        placeholder="N/A",
+        help="Average yearly cyclist deaths"
     )
 
     st.markdown("---")
@@ -139,39 +145,40 @@ with st.form("simulator_form"):
     
     st.markdown("**Modal Share**")
     col_u1, col_u2, col_u3 = st.columns(3)
-    sim_modal_now = col_u1.number_input(
+    
+    sim_modal_now = col_u1.text_input(
         "Current Modal Share (%)",
-        value=18.0,
-        help="% of trips made by bicycle (current year)",
-        placeholder="N/A"
-
+        value="18.0",
+        placeholder="N/A",
+        help="% of trips made by bicycle (current year)"
     )
-    sim_modal_past = col_u2.number_input(
+    sim_modal_past = col_u2.text_input(
         "Pre-Covid Modal Share (%)",
-        value=18.0,
-        help="% of trips made by bicycle (2019 or baseline)",
-        placeholder="N/A"
+        value="18.0",
+        placeholder="N/A",
+        help="% of trips made by bicycle (2019 or baseline)"
     )
-    sim_women = col_u3.number_input(
+    sim_women = col_u3.text_input(
         "Women Share of bicycle trips (%)",
-        value=47.0,
-        help="% of bicycle trips made by women",
-        placeholder="N/A"
+        value="47.0",
+        placeholder="N/A",
+        help="% of bicycle trips made by women"
     )
 
     st.markdown("**Bike Share**")
     col_u4, col_u5, col_u6 = st.columns(3)
-    sim_bs_fleet = col_u4.number_input(
+    
+    sim_bs_fleet = col_u4.text_input(
         "Bike Share Fleet Size",
-        value=6300,
-        help="Total number of bikes in bike-sharing system",
-        placeholder="N/A"
+        value="6300",
+        placeholder="N/A",
+        help="Total number of bikes in bike-sharing system"
     )
-    sim_bs_trips = col_u5.number_input(
+    sim_bs_trips = col_u5.text_input(
         "Daily Bike Share Trips",
-        value=10685,
-        help="Average bike-share trips per day",
-        placeholder="N/A"
+        value="10685",
+        placeholder="N/A",
+        help="Average bike-share trips per day"
     )
     pol_pt_integ = col_u6.checkbox(
         "Public Transit Integration (Bike Share)",
@@ -211,17 +218,18 @@ with st.form("simulator_form"):
     
     st.markdown("**Political Commitment & Urban Planning**")
     col_p1, col_p2 = st.columns(2)
-    sim_budget = col_p1.number_input(
+    
+    sim_budget = col_p1.text_input(
         "Total 5-Year Bicycle Budget (€)",
-        value=142100000,
-        help="Average total municipal budget for cycling infrastructure/programs (5 years)",
-        placeholder="N/A"
+        value="142100000",
+        placeholder="N/A",
+        help="Total municipal budget for cycling infrastructure/programs (5 years)"
     )
-    sim_3yr_km = col_p2.number_input(
+    sim_3yr_km = col_p2.text_input(
         "New Lanes Built in Last 3 Years (Km)",
-        value=22.3,
-        help="Km of new protected bike lanes built recently",
-        placeholder="N/A"
+        value="22.3",
+        placeholder="N/A",
+        help="Km of new protected bike lanes built recently"
     )
 
     col_p3, col_p4, col_p5 = st.columns(3)
@@ -250,6 +258,34 @@ with st.form("simulator_form"):
 # ============================================================================
 
 if submit_button:
+    
+    # ====================================================================
+    # STEP 0: Convert text input to float or None (missing data handling)
+    # ====================================================================
+    def text_to_number(val):
+        """Convert text input to float or None if empty/invalid."""
+        if val is None or val.strip() == "":
+            return None
+        try:
+            return float(val)
+        except ValueError:
+            return None
+    
+    # Convert all text inputs to numbers or None
+    sim_pop = text_to_number(sim_pop)
+    sim_prot_km = text_to_number(sim_prot_km)
+    sim_street_km = text_to_number(sim_street_km)
+    sim_30_km = text_to_number(sim_30_km)
+    sim_pub_park = text_to_number(sim_pub_park)
+    sim_enc_park = text_to_number(sim_enc_park)
+    sim_deaths = text_to_number(sim_deaths)
+    sim_modal_now = text_to_number(sim_modal_now)
+    sim_modal_past = text_to_number(sim_modal_past)
+    sim_women = text_to_number(sim_women)
+    sim_bs_fleet = text_to_number(sim_bs_fleet)
+    sim_bs_trips = text_to_number(sim_bs_trips)
+    sim_budget = text_to_number(sim_budget)
+    sim_3yr_km = text_to_number(sim_3yr_km)
     
     def safe_div(num, den, multiplier=1.0):
         """
