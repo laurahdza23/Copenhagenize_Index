@@ -175,10 +175,10 @@ with st.form("simulator_form"):
         help="Total number of bikes in bike-sharing system"
     )
     sim_bs_trips = col_u5.text_input(
-        "Daily Bike Share Trips",
+        "Annual Bike Share Trips",
         value="10685",
         placeholder="N/A",
-        help="Average bike-share trips per day"
+        help="Bike share total annual trips"
     )
     pol_pt_integ = col_u6.checkbox(
         "Public Transit Integration (Bike Share)",
@@ -286,6 +286,16 @@ if submit_button:
     sim_bs_trips = text_to_number(sim_bs_trips)
     sim_budget = text_to_number(sim_budget)
     sim_3yr_km = text_to_number(sim_3yr_km)
+
+    # CHECK MISSING DATA POINTS
+    raw_inputs = [sim_pop, sim_prot_km, sim_street_km, sim_30_km, sim_pub_park, sim_enc_park, 
+                  sim_deaths, sim_modal_now, sim_modal_past, sim_women, sim_bs_fleet, sim_bs_trips, 
+                  sim_budget, sim_3yr_km]
+    missing_count = sum(1 for x in raw_inputs if x is None)
+    
+    if missing_count > 4:
+        st.warning(f"⚠️ **Low Reliability Warning:** {missing_count} numeric data points are missing. "
+                   "The simulated score's accuracy and global ranking comparability are reduced.")
     
     def safe_div(num, den, multiplier=1.0):
         """
@@ -334,6 +344,36 @@ if submit_button:
         if invert:
             score = 100 - score
         return max(0, min(100, score)) 
+    
+    # --- Specific indicators thresholds ---
+    def get_bike_share_cov_score(val):
+        
+        if pd.isna(val): return 0
+        if val >= 8: return 4
+        if val >= 5: return 3
+        if val >= 3: return 2
+        if val >= 1: return 1
+        return 0
+
+    def get_bike_share_usage_score(val):
+        
+        if pd.isna(val): return 0
+        if val > 5: return 4 
+        if val >= 3: return 3
+        if val >= 1.75: return 2
+        if val >= 1: return 1
+        return 0
+
+    def get_infra_increase_score(val):
+        
+        if pd.isna(val): return 0
+        if val == 0.0: return 0
+        if val < 0.25: return 1
+        if val < 0.75: return 2
+        if val < 1.25: return 3
+        if val < 2.0: return 4
+        if val < 3.5: return 5
+        return 6
 
     # ====================================================================
     # STEP A: Calculate Raw Metrics (Densities, Rates, Ratios)
@@ -354,7 +394,13 @@ if submit_button:
     modal_delta = (sim_modal_now - sim_modal_past) if (sim_modal_now is not None and sim_modal_past is not None) else np.nan
     
     bs_cov = safe_div(sim_bs_fleet, sim_pop, 1000)  # Bikes per 1K residents
-    bs_usage = safe_div(sim_bs_trips, sim_bs_fleet, 1)  # Trips per bike per day
+    if sim_bs_trips == 0 and sim_bs_fleet == 0:
+        bs_usage = 0
+    elif sim_bs_fleet == 0 or sim_bs_fleet is None or pd.isna(sim_bs_fleet):
+        bs_usage = np.nan
+    else:
+        # Convert annual trips to daily trips per bike
+        bs_usage = safe_div(sim_bs_trips, sim_bs_fleet * 365, 1)
     
     # Budget per capita: average the 5-year budget over years then divide by population
     spending_pc = safe_div((sim_budget / 5) if sim_budget is not None else None, sim_pop, 1)
@@ -369,16 +415,10 @@ if submit_button:
     n_park = normalize(parking_dens, 'Parking_density (stands/1K pop)')
     n_traf = normalize(traffic_30_pct, 'Traffic_30 (% of km of roadway)')
     n_safe = normalize(safety_rate, 'Safety_rate (rate/100K pop)', invert=True)  # Inverted: lower deaths = better
-    
     n_women = normalize(sim_women, 'Bike_trips_women_%')
     n_modal = normalize(sim_modal_now, 'Modal_share_2024_% \n(or nearest post-Covid)')
     n_mod_inc = normalize(modal_delta, 'Modal_delta (percentage points)')
-    n_bs_cov = normalize(bs_cov, 'Bike_share_cov_density (bikes/1K pop)')
-    n_bs_use = normalize(bs_usage, 'Bike_share_usage (trips/bike/day)')
-    n_pt_integ = 100 if pol_pt_integ else 0  # Binary: integrated or not
-    
     n_spend = normalize(spending_pc, 'Spending_per_capita (€/capita/year)')
-    n_urb_inc = normalize(infra_inc, 'Infra_increase (km of bicycle infra/100 km of roadway)')
 
     # ====================================================================
     # STEP C: Calculate 13 Indicator Scores
@@ -400,16 +440,29 @@ if submit_button:
         score_modal_final = n_modal
         score_mod_inc_final = n_mod_inc
         score_cargo_bikes = sum([pol_subsidy_hh, pol_subsidy_biz, pol_cargo_biz, pol_cargo_infra]) / 4 * 100
-        score_bike_share = np.nanmean([n_bs_cov, n_bs_use, n_pt_integ])
+        
+        # Bike Share logic (0-9 scale converted to 0-100)
+        if pd.isna(bs_cov) and pd.isna(bs_usage):
+            score_bike_share = np.nan
+        else:
+            cov_score = get_bike_share_cov_score(bs_cov) if pd.notna(bs_cov) else 0
+            use_score = get_bike_share_usage_score(bs_usage) if pd.notna(bs_usage) else 0
+            pt_score = 1 if pol_pt_integ else 0
+            # TEMPORARY verification outputs for bike share scoring logic
+            #st.write(f"Raw Coverage Density: {bs_cov:.2f} -> Points: {cov_score}")
+            #st.write(f"Raw Daily Usage Rate: {bs_usage:.2f} -> Points: {use_score}")
+            #st.write(f"PT Points: {pt_score}")
+            score_bike_share = ((cov_score + use_score + pt_score)) * 100/9
         
         # Policy & Support scores (Pillar 3 components)
         score_political = n_spend
         score_advocacy = sum([pol_ngo_exists, pol_ngo_events, pol_ngo_policy]) / 3 * 100
         score_image = sum([pol_media, pol_brand, pol_school]) / 3 * 100
-        plan_bin = sum([pol_masterplan, pol_unit, pol_standards, pol_monitor]) / 4 * 100
-        
-        # Urban planning appears in both Pillar 1 and Pillar 3 (Infrastructure + Policy)
-        score_urban_plan = np.nanmean([n_urb_inc, plan_bin])
+                
+        # Urban Planning logic (0-10 scale converted to 0-100)
+        infra_inc_score = get_infra_increase_score(infra_inc) if pd.notna(infra_inc) else 0
+        plan_bin = sum([pol_masterplan, pol_unit, pol_standards, pol_monitor])
+        score_urban_plan = (infra_inc_score + plan_bin) * 10
 
         # ====================================================================
         # STEP D: Calculate 3 Pillars and Composite Index Score
@@ -475,6 +528,7 @@ if submit_button:
             context_table.columns = ['City', 'Composite Score', 'Global Rank']
             context_table = context_table[['Global Rank', 'City', 'Composite Score']] # Reorder for display
 
+            
     # ====================================================================
     # DISPLAY RESULTS - SUMMARY CARD & VISUALIZATIONS
     # ====================================================================
@@ -637,6 +691,20 @@ if submit_button:
             st.write(styled_table.to_html(), unsafe_allow_html=True)
         else:
             st.write("Ranking data unavailable.")
+
+    # ====================================================================
+    # SCORING TABLE (Numeric Scores display)
+    # ====================================================================
+    st.markdown("### 📋 Detailed Scoring Table")
+    
+    # Create a cleaner DataFrame purely for displaying the values to the user
+    display_df = pd.DataFrame({
+        "Indicator": radar_labels,
+        "Simulated Score (0-100)": simulated_values
+    })
+    display_df["Simulated Score (0-100)"] = display_df["Simulated Score (0-100)"].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "N/A")
+    
+    st.dataframe(display_df, width=500, hide_index=True)
 
     # ====================================================================
     # EXPORT TO PDF
