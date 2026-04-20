@@ -591,7 +591,7 @@ if submit_button:
         radar_columns = [
             'Bicycle Infrastructure Score', 'Bicycle Parking Score', 'Traffic Calming Score', 'Safety Score',
             'Women Share Score', 'Modal Share Score', 'Modal Share Increase Score', 'Image of the Bicycle Score',
-            'Cargo Bikes Score', 'Advocacy Score', 'Politics Score', 'Bike Share Score', 'Urban Planning Score'
+            'Cargo Bikes Score', 'Advocacy Score', 'Political commitment Score', 'Bike Share Score', 'Urban Planning Score'
         ]
         radar_labels = [c.replace(' Score', '') for c in radar_columns]
         
@@ -695,7 +695,7 @@ if submit_button:
     # ====================================================================
     # SCORING TABLE (Numeric Scores display)
     # ====================================================================
-    st.markdown("### 📋 Detailed Scoring Table")
+    st.markdown("### 📋 Scoring Table")
     
     # Create a cleaner DataFrame purely for displaying the values to the user
     display_df = pd.DataFrame({
