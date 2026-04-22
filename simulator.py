@@ -258,6 +258,9 @@ with st.form("simulator_form"):
 # ============================================================================
 
 if submit_button:
+    st.session_state.simulation_submitted = True
+
+if st.session_state.get('simulation_submitted', False):
     
     # ====================================================================
     # STEP 0: Convert text input to float or None (missing data handling)
@@ -587,67 +590,103 @@ if submit_button:
         st.progress(p_pol_val, text=p_pol_text)
         
     with res_col2:
-        # Radar Chart: Simulated City vs. Global Top 10
+        
+        # --- REGION SELECTOR FOR RADAR CHART ---
+        if 'Continent' in df.columns:
+            regions = sorted([str(x) for x in df['Continent'].dropna().unique()])
+        else:
+            regions = ["Europe", "North America", "South America", "Asia & Oceania", "Africa"]
+            
+        sim_region = st.selectbox("🌍 Select Regional Benchmark to Compare", ["None (Top 30 Only)"] + regions)
+        
+        # 1. ORGANIZE RADAR COLUMNS BY PILLAR
         radar_columns = [
+            # Safe & Connected Infrastructure (Blue)
             'Bicycle Infrastructure Score', 'Bicycle Parking Score', 'Traffic Calming Score', 'Safety Score',
-            'Women Share Score', 'Modal Share Score', 'Modal Share Increase Score', 'Image of the Bicycle Score',
-            'Cargo Bikes Score', 'Advocacy Score', 'Political commitment Score', 'Bike Share Score', 'Urban Planning Score'
+            # Usage & Reach (Orange)
+            'Modal Share Score', 'Modal Share Increase Score', 'Women Share Score', 'Bike Share Score', 'Cargo Bikes Score',
+            # Policy & Support (Purple)
+            'Politics Score', 'Advocacy Score', 'Image of the Bicycle Score', 'Urban Planning Score'
         ]
-        radar_labels = [c.replace(' Score', '') for c in radar_columns]
         
         simulated_values = [
             score_infrastructure, score_parking, score_traffic, score_safety,
-            score_women_final, score_modal_final, score_mod_inc_final, score_image,
-            score_cargo_bikes, score_advocacy, score_political, score_bike_share, score_urban_plan
+            score_modal_final, score_mod_inc_final, score_women_final, score_bike_share, score_cargo_bikes,
+            score_political, score_advocacy, score_image, score_urban_plan
         ]
         
-        # Calculate average scores of top 10 cities for comparison
-        top_10_avg = []
-        if 'Rank' in df.columns:
-            top_10_df = df.nsmallest(10, 'Rank')
-        else:
-            top_10_df = df.head(10)
+        # 2. COLOR CODE LABELS USING HTML
+        raw_labels = [c.replace(' Score', '') for c in radar_columns]
+        radar_labels = [
+            f"<span style='color:#1f77b4'><b>{l}</b></span>" for l in raw_labels[:4]    # Infrastructure: Blue
+        ] + [
+            f"<span style='color:#ff7f0e'><b>{l}</b></span>" for l in raw_labels[4:9]   # Usage: Orange
+        ] + [
+            f"<span style='color:#9467bd'><b>{l}</b></span>" for l in raw_labels[9:]    # Policy: Purple
+        ]
         
-        for col in radar_columns:
-            alt_col = "Score " + col.replace(" Score", "")
-            target_col = col if col in top_10_df.columns else (alt_col if alt_col in top_10_df.columns else None)
-                
-            if target_col:
-                # Clean string values (replace commas with periods for European decimal format)
-                clean_series = top_10_df[target_col].astype(str).str.replace(',', '.').str.strip()
-                mean_val = pd.to_numeric(clean_series, errors='coerce').mean()
-                top_10_avg.append(mean_val if pd.notna(mean_val) else None)
-            else:
-                top_10_avg.append(None) 
+        # 3. GET AVERAGES (Top 30 and Region)
+        def get_radar_averages(df_subset, columns_list):
+            avg_list = []
+            for col in columns_list:
+                alt_col = "Score " + col.replace(" Score", "")
+                target_col = col if col in df_subset.columns else (alt_col if alt_col in df_subset.columns else None)
+                if target_col:
+                    clean_series = df_subset[target_col].astype(str).str.replace(',', '.').str.strip()
+                    mean_val = pd.to_numeric(clean_series, errors='coerce').mean()
+                    avg_list.append(mean_val if pd.notna(mean_val) else None)
+                else:
+                    avg_list.append(None)
+            return avg_list
+
+        # Top 30 Average
+        top_30_df = df.nsmallest(30, 'Rank') if 'Rank' in df.columns else df.head(30)
+        top_30_avg = get_radar_averages(top_30_df, radar_columns)
+
+        # Selected Regional Average
+        region_avg = []
+        if sim_region != "None (Top 30 Only)" and 'Continent' in df.columns:
+            region_df = df[df['Continent'] == sim_region]
+            if not region_df.empty:
+                region_avg = get_radar_averages(region_df, radar_columns)
         
-        # Create closed polygon by repeating first point
+        # 4. CLOSE POLYGONS
         closed_theta = radar_labels + [radar_labels[0]]
         closed_sim = [None if pd.isna(v) else v for v in (simulated_values + [simulated_values[0]])]
         
-        closed_top10 = [None if pd.isna(v) else v for v in top_10_avg]
-        if closed_top10: 
-            closed_top10.append(closed_top10[0]) 
-        
-        # Build radar chart
+        closed_top30 = [None if pd.isna(v) else v for v in top_30_avg]
+        if closed_top30: closed_top30.append(closed_top30[0]) 
+
         fig_radar = go.Figure()
         
+        # Trace 1: Simulated City
         fig_radar.add_trace(go.Scatterpolar(
             r=closed_sim, theta=closed_theta,
-            fill='toself', name=sim_city, line=dict(color='#1BBBEC', width=3),
-            connectgaps=True 
+            fill='toself', name=sim_city, line=dict(color='#1BBBEC', width=3), connectgaps=True 
         ))
         
-        # Add top 10 average trace if data exists
-        if any(v is not None for v in top_10_avg):
+        # Trace 2: Global Top 30
+        if any(v is not None for v in top_30_avg):
             fig_radar.add_trace(go.Scatterpolar(
-                r=closed_top10, theta=closed_theta,
-                fill='none', name='Global Top 10 Avg', line=dict(color='#D53C4C', width=2, dash='dash'),
-                connectgaps=True
+                r=closed_top30, theta=closed_theta,
+                fill='none', name='Global Top 30 Avg', line=dict(color='#D53C4C', width=2, dash='dash'), connectgaps=True
+            ))
+            
+        # Trace 3: Regional Average (If selected)
+        if region_avg and any(v is not None for v in region_avg):
+            closed_region = [None if pd.isna(v) else v for v in region_avg]
+            closed_region.append(closed_region[0])
+            fig_radar.add_trace(go.Scatterpolar(
+                r=closed_region, theta=closed_theta,
+                fill='none', name=f'{sim_region} Avg', line=dict(color='#28A745', width=2, dash='dot'), connectgaps=True
             ))
         
         fig_radar.update_layout(
             polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-            showlegend=True, height=400, margin=dict(t=20, b=20, l=40, r=40)
+            showlegend=True, 
+            height=450, 
+            margin=dict(t=30, b=30, l=60, r=60),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5) 
         )
         st.plotly_chart(fig_radar, use_container_width=True)
 
@@ -659,7 +698,7 @@ if submit_button:
     
     st.markdown("---")
     
-    score_dict = dict(zip(radar_labels, simulated_values))
+    score_dict = dict(zip(raw_labels, simulated_values))
     valid_scores = {k: v for k, v in score_dict.items() if pd.notna(v)}
     sorted_scores = sorted(valid_scores.items(), key=lambda item: item[1], reverse=True)
     
@@ -681,7 +720,6 @@ if submit_button:
     with col_rank:
         st.info("🏆 **Comparative Ranking**")
         if context_table is not None:
-            # Use Pandas Styling to highlight the simulated row
             def highlight_simulated(row):
                 if "(Simulated)" in row['City']:
                     return ['background-color: #1BBBEC; color: white'] * len(row)
@@ -699,7 +737,7 @@ if submit_button:
     
     # Create a cleaner DataFrame purely for displaying the values to the user
     display_df = pd.DataFrame({
-        "Indicator": radar_labels,
+        "Indicator": raw_labels,
         "Simulated Score (0-100)": simulated_values
     })
     display_df["Simulated Score (0-100)"] = display_df["Simulated Score (0-100)"].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "N/A")
@@ -715,13 +753,13 @@ if submit_button:
         '''
         <div style="text-align: center; margin-top: 50px;">
             <button onclick="window.parent.print()" 
-                    style="padding: 12px 24px; font-size: 16px; font-weight: bold; 
+                    style="padding: 14px 24px; font-size: 16px; font-weight: bold; 
                            background-color: #1BBBEC; color: white; border: none; 
                            border-radius: 5px; cursor: pointer; 
                            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
                 🖨️ Print Summary Card
             </button>
-            <p style="font-family: sans-serif; color: #666; font-size: 12px; margin-top: 10px;">
+            <p style="font-family: sans-serif; color: #666; font-size: 14px; margin-top: 10px;">
                 💡 Tip: Use landscape orientation and enable "Background graphics" in your print settings.
             </p>
         </div>
