@@ -735,7 +735,7 @@ if st.session_state.get('simulation_submitted', False):
     # SCORING TABLE (Numeric Scores display)
     # ====================================================================
     st.markdown("---")
-    st.markdown("### 📋 Scoring Table")
+    st.markdown('<h3 class="hide-on-print">📋 Detailed Scoring Table</h3>', unsafe_allow_html=True)
     
     # Create a cleaner DataFrame purely for displaying the values to the user
     display_df = pd.DataFrame({
