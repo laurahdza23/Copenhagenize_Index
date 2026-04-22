@@ -143,7 +143,7 @@ with st.form("simulator_form"):
     # PILLAR 2: Usage & Reach
     st.subheader("🚲 Pillar 2: Usage & Reach")
     
-    st.markdown("**Modal Share**")
+    st.markdown("**Bicycle Modal Share**")
     col_u1, col_u2, col_u3 = st.columns(3)
     
     sim_modal_now = col_u1.text_input(
@@ -165,7 +165,7 @@ with st.form("simulator_form"):
         help="% of bicycle trips made by women"
     )
 
-    st.markdown("**Bike Share**")
+    st.markdown("**Bike Share System**")
     col_u4, col_u5, col_u6 = st.columns(3)
     
     sim_bs_fleet = col_u4.text_input(
@@ -181,7 +181,7 @@ with st.form("simulator_form"):
         help="Bike share total annual trips"
     )
     pol_pt_integ = col_u6.checkbox(
-        "Public Transit Integration (Bike Share)",
+        "Public Transit Integration (Bike Share System)",
         value=False,
         help="Can users use bike share with public transit passes?"
     )
@@ -444,7 +444,7 @@ if st.session_state.get('simulation_submitted', False):
         score_mod_inc_final = n_mod_inc
         score_cargo_bikes = sum([pol_subsidy_hh, pol_subsidy_biz, pol_cargo_biz, pol_cargo_infra]) / 4 * 100
         
-        # Bike Share logic (0-9 scale converted to 0-100)
+        # Bike Share System logic (0-9 scale converted to 0-100)
         if pd.isna(bs_cov) and pd.isna(bs_usage):
             score_bike_share = np.nan
         else:
@@ -477,8 +477,8 @@ if st.session_state.get('simulation_submitted', False):
         #   - Urban planning investment
         #
         # Pillar 2: Usage & Reach
-        #   - Actual adoption by residents (modal share, women participation)
-        #   - Specialized services (cargo bikes, bike share)
+        #   - Actual adoption by residents (Bicycle Modal Share, women participation)
+        #   - Specialized services (cargo bikes, bike share system)
         #
         # Pillar 3: Policy & Support
         #   - Municipal financial commitment
@@ -547,8 +547,8 @@ if st.session_state.get('simulation_submitted', False):
             padding-bottom: 0rem !important;
         }
         @media print {
-            /* Hide interactive elements during print */
-            header, h1, .hide-on-print, div[data-testid="stForm"], iframe { 
+            /* Added stDataFrame to the hidden list */
+            header, h1, .hide-on-print, div[data-testid="stForm"], iframe, div[data-testid="stSelectbox"], div[data-testid="stDataFrame"] { 
                 display: none !important; 
             }
             .stApp { margin-top: -80px; }
@@ -604,9 +604,9 @@ if st.session_state.get('simulation_submitted', False):
             # Safe & Connected Infrastructure (Blue)
             'Bicycle Infrastructure Score', 'Bicycle Parking Score', 'Traffic Calming Score', 'Safety Score',
             # Usage & Reach (Orange)
-            'Modal Share Score', 'Modal Share Increase Score', 'Women Share Score', 'Bike Share Score', 'Cargo Bikes Score',
+            'Bicycle Modal Share Score', 'Modal Share Growth Score', 'Women Share Score', 'Bike Share System Score', 'Cargo Bikes Score',
             # Policy & Support (Purple)
-            'Politics Score', 'Advocacy Score', 'Image of the Bicycle Score', 'Urban Planning Score'
+            'Political Commitment Score', 'Cycling Advocacy Score', 'Image of the Bicycle Score', 'Urban Planning Score'
         ]
         
         simulated_values = [
@@ -689,6 +689,7 @@ if st.session_state.get('simulation_submitted', False):
             legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5) 
         )
         st.plotly_chart(fig_radar, use_container_width=True)
+        
 
     # ====================================================================
     # STRENGTHS, AREAS FOR IMPROVEMENT, GLOBAL CONTEXT
@@ -733,6 +734,7 @@ if st.session_state.get('simulation_submitted', False):
     # ====================================================================
     # SCORING TABLE (Numeric Scores display)
     # ====================================================================
+    st.markdown("---")
     st.markdown("### 📋 Scoring Table")
     
     # Create a cleaner DataFrame purely for displaying the values to the user
