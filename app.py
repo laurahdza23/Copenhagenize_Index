@@ -158,7 +158,7 @@ def generate_pdf_report(city_data, sorted_scores, missing_policies):
 # --- INDICATOR DICTIONARY ---
 indicator_categories = {
     "Infrastructure": ["Protected_km", "Infra_density (km of bicycle infra/100 km of roadway)"],
-    "Parking": ["Public_spaces", "Enclosed_spaces", "Parking_density (stands/1K pop)"],
+    "Bicycle Parking": ["Public_spaces", "Enclosed_spaces", "Parking_density (stands/1K pop)"],
     "Traffic Calming": ["Street_km_total", "Street_Km_30", "Traffic_30 (% of km of roadway)"],
     "Modal Share": ["Bike_trips_women_%", "Modal_share_2024_% \n(or nearest post-Covid)", "Modal_share_2019_% \n(or nearest pre-Covid)", "Modal_delta (percentage points)"],
     "Safety": ["Cyclist_deaths", "Safety_rate (rate/100K pop)"],
@@ -483,6 +483,8 @@ with tab3:
         'Modal_delta (percentage points)',
         'Bike_trips_women_%',
         'Safety_rate (rate/100K pop)'
+
+        
     ]
     
     # Automatically grab all the 0-100 sub-indicator scores as well
@@ -649,7 +651,7 @@ with tab3:
                 
             if pd.notna(min_val):
                 min_idx = lower_tri.stack().idxmin()
-                st.markdown(f"- **Strongest Inverse Pairing:** `{min_idx[0].split('(')[0].strip()}` ⚖️ `{min_idx[1].split('(')[0].strip()}` (r = **{min_val:.2f}**)")
+                st.markdown(f"- **Lowest Pairing:** `{min_idx[0].split('(')[0].strip()}` ⚖️ `{min_idx[1].split('(')[0].strip()}` (r = **{min_val:.2f}**)")
                 
             st.caption("*Note: The matrix automatically filters out self-correlations (1.0) when finding the strongest pairs.*")
 
@@ -694,8 +696,8 @@ with tab4:
     regional_avg = f"Average: {target_continent}"
     smart_defaults = [target_city, regional_avg] + top_3_peers
     
-    # Ensure our defaults don't crash if data is missing, and limit to 5
-    valid_defaults = [x for x in smart_defaults if x in all_options][:5]
+    # Ensure our defaults don't crash if data is missing, and limit to 6
+    valid_defaults = [x for x in smart_defaults if x in all_options][:6]
     
     with col_peers:
         # Step C: The Multiselect automatically populates with the algorithm's results
@@ -703,7 +705,7 @@ with tab4:
             " 2. Benchmark Peers:",
             options=all_options,
             default=valid_defaults,
-            max_selections=5
+            max_selections=6
         )
 
     if len(selected_targets) == 0:
@@ -728,19 +730,38 @@ with tab4:
         st.markdown("---")
         st.markdown("### 🎯 Indicator Radar")
         
-        score_cols = [c for c in df.columns if 'Score ' in c and c not in ['Index Score', 'Score per Pillar']]
-        radar_labels = [c.replace('Score ', '') for c in score_cols]
+        # 1. ORGANIZE RADAR COLUMNS BY PILLAR
+        # Using exact dataset column names to ensure entity_data fetches correctly
+        score_cols = [
+            # Safe & Connected Infrastructure (Blue) - 4 indicators
+            'Score Bicycle Infrastructure', 'Score Bicycle Parking', 'Score Traffic Calming', 'Score Safety',
+            # Usage & Reach (Orange) - 5 indicators
+            'Score Modal Share', 'Score Modal Share Increase', 'Score Women Modal Share', 'Score Bike Share', 'Score Cargo Bikes',
+            # Policy & Support (Purple) - 4 indicators
+            'Score Political Commitment', 'Score Advocacy', 'Score Image of the Bicycle', 'Score Urban Planning'
+        ]
+        
+        # 2. COLOR CODE LABELS USING HTML
+        raw_labels = [c.replace('Score ', '') for c in score_cols]
+        radar_labels = [
+            f"<span style='color:#1BBBEC'><b>{l}</b></span>" for l in raw_labels[:4]    # Infrastructure: Copenhagenize Blue (4 items)
+        ] + [
+            f"<span style='color:#F28E2B'><b>{l}</b></span>" for l in raw_labels[4:9]   # Usage: Orange (5 items)
+        ] + [
+            f"<span style='color:#9467BD'><b>{l}</b></span>" for l in raw_labels[9:]    # Policy: Purple (4 items)
+        ]
         
         # label to the end to close the circular loop
         closed_theta = radar_labels + [radar_labels[0]]
         
         fig_radar = go.Figure()
         
-        # Color palette
-        colors = ['#1BBBEC', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
+        # Color palette for the different cities being compared
+        colors = ['#1BBBEC', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', "#af3a92"]  
         
         for idx, target in enumerate(selected_targets):
-            r_vals = [entity_data[target].get(c, 0) for c in score_cols]
+            # Safely fetch the score, converting any NaN/missing values to 0 so the chart doesn't break
+            r_vals = [entity_data[target].get(c, 0) if pd.notna(entity_data[target].get(c, 0)) else 0 for c in score_cols]
             closed_r = r_vals + [r_vals[0]]
             
             # --- HIGHLIGHT LOGIC ---
@@ -754,7 +775,7 @@ with tab4:
                 fill='toself' if is_target or len(selected_targets) <= 2 else 'none',
                 name=f"🎯 {target}" if is_target else target,
                 line=dict(
-                    color=colors[idx],
+                    color=colors[idx % len(colors)],
                     width=4.5 if is_target else 2, # Thicker target line
                     dash='dash' if is_average and not is_target else 'solid' # Averages dashed lines
                 ),
@@ -762,13 +783,17 @@ with tab4:
             ))
         
         fig_radar.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 100]),
+                angularaxis=dict(tickfont=dict(size=14)) 
+            ),
             showlegend=True,
+            legend=dict(font=dict(size=16)),
             height=650,
-            template='plotly_white',
-            margin=dict(t=40, b=40, l=40, r=40)
+            margin=dict(t=60, b=60, l=80, r=80) 
         )
         st.plotly_chart(fig_radar, use_container_width=True, config=export_config)
+        
        
         st.markdown("### 📊 Diagnostic table")
         st.markdown("**Raw Data** ➡️ **Correlated Data** (normalized) ➡️ **Final Score** (0-100).")
@@ -780,15 +805,15 @@ with tab4:
                 "Correlated": "Infra_density (km of bicycle infra/100 km of roadway)",
                 "Score": "Score Bicycle Infrastructure"
             },
-            "Parking": {
+            "Bicycle Parking": {
                 "Raw": ["Public_spaces", "Enclosed_spaces"],
                 "Correlated": "Parking_density (stands/1K pop)",
-                "Score": "Score Parking"
+                "Score": "Score Bicycle Parking"
             },
             "Traffic Calming": {
                 "Raw": ["Street_Km_30", "Street_km_total"],
                 "Correlated": "Traffic_30 (% of km of roadway)",
-                "Score": "Score Traffic Calming" 
+                "Score": "Score Traffic Calming"
             },
             "Women Modal Share": {
                 "Raw": "Bike_trips_women_%",
@@ -800,7 +825,7 @@ with tab4:
             },    
              "Modal Share increase": {
                 "Correlated": "Modal_delta (percentage points)", # Fixed capitalization
-                "Score": "Score Modal Share"
+                "Score": "Score Modal Share Increase"
             },
             "Safety": {
                 "Raw": "Cyclist_deaths",
@@ -821,6 +846,14 @@ with tab4:
                 "Raw": "3yr_new_lanes_km",
                 "Correlated": "Infra_increase (km of bicycle infra/100 km of roadway)",
                 "Score": "Score Urban Planning"
+            },
+            "Cargo Bikes": {
+                "Raw": ["Household_purchase_subsidy_yes_no", "Logistics_business_subsidy_yes_no"],
+                "Score": "Score Cargo Bikes"
+            },
+            "Image of the Bicycle": {
+                "Raw": ["Media_tone_70%_positive", "Bicycle_brand_network_identity", "School_cycling_education"],
+                "Score": "Score Image of the Bicycle"
             }
         }
 
